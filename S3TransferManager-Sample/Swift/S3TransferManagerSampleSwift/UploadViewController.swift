@@ -25,14 +25,21 @@ class UploadViewController: UIViewController, UICollectionViewDelegate, UICollec
 
     override func viewDidLoad() {
         super.viewDidLoad()
-
-        var error = NSErrorPointer()
-        if !NSFileManager.defaultManager().createDirectoryAtPath(
-            NSTemporaryDirectory().stringByAppendingPathComponent("upload"),
-            withIntermediateDirectories: true,
-            attributes: nil,
-            error: error) {
-                println("Creating 'upload' directory failed. Error: \(error)")
+        
+        let tmpDirURL = NSURL.fileURLWithPath(NSTemporaryDirectory(), isDirectory: true)
+        
+        //let fileURL = tmpDirURL.URLByAppendingPathComponent("pkm").URLByAppendingPathExtension("jpg")
+        //print("FilePath: \(fileURL.path)")
+        
+        
+        //let writePath = NSURL(fileURLWithPath: NSTemporaryDirectory()).URLByAppendingPathComponent("upload")
+        let writePath = tmpDirURL
+        
+        do {
+            try NSFileManager.defaultManager().createDirectoryAtPath(writePath.path!, withIntermediateDirectories: true, attributes: nil)
+        }
+        catch let error as NSError {
+            NSLog("\(error.localizedDescription)")
         }
     }
 
@@ -91,19 +98,19 @@ class UploadViewController: UIViewController, UICollectionViewDelegate, UICollec
                             break;
 
                         default:
-                            println("upload() failed: [\(error)]")
+                            print("upload() failed: [\(error)]")
                             break;
                         }
                     } else {
-                        println("upload() failed: [\(error)]")
+                        print("upload() failed: [\(error)]")
                     }
                 } else {
-                    println("upload() failed: [\(error)]")
+                    print("upload() failed: [\(error)]")
                 }
             }
 
             if let exception = task.exception {
-                println("upload() failed: [\(exception)]")
+                print("upload() failed: [\(exception)]")
             }
 
             if task.result != nil {
@@ -122,14 +129,14 @@ class UploadViewController: UIViewController, UICollectionViewDelegate, UICollec
     }
 
     func cancelAllUploads() {
-        for (index, uploadRequest) in enumerate(self.uploadRequests) {
+        for (_, uploadRequest) in self.uploadRequests.enumerate() {
             if let uploadRequest = uploadRequest {
                 uploadRequest.cancel().continueWithBlock({ (task) -> AnyObject! in
                     if let error = task.error {
-                        println("cancel() failed: [\(error)]")
+                        print("cancel() failed: [\(error)]")
                     }
                     if let exception = task.exception {
-                        println("cancel() failed: [\(exception)]")
+                        print("cancel() failed: [\(exception)]")
                     }
                     return nil
                 })
@@ -203,10 +210,10 @@ class UploadViewController: UIViewController, UICollectionViewDelegate, UICollec
             case .Running:
                 uploadRequest.pause().continueWithBlock({ (task) -> AnyObject! in
                     if let error = task.error {
-                        println("pause() failed: [\(error)]")
+                        print("pause() failed: [\(error)]")
                     }
                     if let exception = task.exception {
-                        println("pause() failed: [\(exception)]")
+                        print("pause() failed: [\(exception)]")
                     }
 
                     return nil
@@ -227,18 +234,34 @@ class UploadViewController: UIViewController, UICollectionViewDelegate, UICollec
     func elcImagePickerController(picker: ELCImagePickerController!, didFinishPickingMediaWithInfo info: [AnyObject]!) {
         self.dismissViewControllerAnimated(true, completion: nil)
 
-        for (index, imageDictionary) in enumerate(info) {
+        for (_, imageDictionary) in info.enumerate() {
             if let imageDictionary = imageDictionary as? Dictionary<String, AnyObject> {
                 if let mediaType = imageDictionary[UIImagePickerControllerMediaType] as? String {
                     if mediaType == ALAssetTypePhoto {
                         if let image = imageDictionary[UIImagePickerControllerOriginalImage] as? UIImage {
                             let fileName = NSProcessInfo.processInfo().globallyUniqueString.stringByAppendingString(".png")
-                            let filePath = NSTemporaryDirectory().stringByAppendingPathComponent("upload").stringByAppendingPathComponent(fileName)
-                            let imageData = UIImagePNGRepresentation(image)
-                            imageData.writeToFile(filePath, atomically: true)
+                            //let fileName = "test.png"
+                            //let filePath = NSURL(fileURLWithPath: NSTemporaryDirectory()).URLByAppendingPathComponent("upload").URLByAppendingPathComponent(fileName)
+                            
+                            let tmpDirURL = NSURL.fileURLWithPath(NSTemporaryDirectory(), isDirectory: true)
+                            let filePath = tmpDirURL.URLByAppendingPathComponent(fileName, isDirectory: false)
 
+                            //print("Filename generated: \(fileName)")
+                            //print("Filepath generated: \(filePath.path!)")
+                            
+                            let imageData = UIImagePNGRepresentation(image)
+                            
+                            imageData!.writeToFile(String(filePath), atomically: true)
+                            
+                            do {
+                                try imageData!.writeToFile(filePath.path!, options: NSDataWritingOptions.AtomicWrite)
+                            }
+                            catch let error as NSError {
+                                NSLog("\(error.localizedDescription)")
+                            }
+                            
                             let uploadRequest = AWSS3TransferManagerUploadRequest()
-                            uploadRequest.body = NSURL(fileURLWithPath: filePath)
+                            uploadRequest.body = NSURL(fileURLWithPath: filePath.path!)
                             uploadRequest.key = fileName
                             uploadRequest.bucket = S3BucketName
 
@@ -259,7 +282,7 @@ class UploadViewController: UIViewController, UICollectionViewDelegate, UICollec
     }
 
     func indexOfUploadRequest(array: Array<AWSS3TransferManagerUploadRequest?>, uploadRequest: AWSS3TransferManagerUploadRequest?) -> Int? {
-        for (index, object) in enumerate(array) {
+        for (index, object) in array.enumerate() {
             if object == uploadRequest {
                 return index
             }

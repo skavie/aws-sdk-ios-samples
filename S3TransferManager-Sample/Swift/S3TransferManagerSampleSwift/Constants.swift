@@ -16,7 +16,9 @@
 import Foundation
 
 //WARNING: To run this sample correctly, you must set the following constants.
-let CognitoRegionType = AWSRegionType.Unknown  // e.g. AWSRegionType.USEast1
-let DefaultServiceRegionType = AWSRegionType.Unknown // e.g. AWSRegionType.USEast1
-let CognitoIdentityPoolId = "YourCognitoIdentityPoolId"
-let S3BucketName = "YourS3BucketName"
+let CognitoRegionType = AWSRegionType.EUWest1  // e.g. AWSRegionType.USEast1
+let DefaultServiceRegionType = AWSRegionType.USEast1 // e.g. AWSRegionType.USEast1
+let CognitoIdentityPoolId = "eu-west-1:d9bff911-616e-4648-9ba4-868cbdd83a9c"
+let S3BucketName = "wolfstatsbucket" //http://s3-eu-west-1.amazonaws.com/biggobs3
+//let S3BucketName = "biggobs3" //http://s3-eu-west-1.amazonaws.com/biggobs3
+

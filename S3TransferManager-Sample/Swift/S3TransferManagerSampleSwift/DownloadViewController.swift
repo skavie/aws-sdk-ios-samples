@@ -25,13 +25,14 @@ class DownloadViewController: UIViewController, UICollectionViewDelegate, UIColl
     override func viewDidLoad() {
         super.viewDidLoad()
         listObjects()
-        var error = NSErrorPointer()
-        if !NSFileManager.defaultManager().createDirectoryAtPath(
-            NSTemporaryDirectory().stringByAppendingPathComponent("download"),
-            withIntermediateDirectories: true,
-            attributes: nil,
-            error: error) {
-                println("Creating 'download' directory failed. Error: \(error)")
+
+        let readPath = NSURL(fileURLWithPath: NSTemporaryDirectory()).URLByAppendingPathComponent("download")
+        
+        do {
+            try NSFileManager.defaultManager().createDirectoryAtPath(String(readPath), withIntermediateDirectories: true, attributes: nil)
+        }
+        catch let error as NSError {
+            NSLog("\(error.localizedDescription)")
         }
     }
 
@@ -84,18 +85,18 @@ class DownloadViewController: UIViewController, UICollectionViewDelegate, UIColl
         listObjectsRequest.bucket = S3BucketName
         s3.listObjects(listObjectsRequest).continueWithBlock { (task) -> AnyObject! in
             if let error = task.error {
-                println("listObjects failed: [\(error)]")
+                print("listObjects failed: [\(error)]")
             }
             if let exception = task.exception {
-                println("listObjects failed: [\(exception)]")
+                print("listObjects failed: [\(exception)]")
             }
             if let listObjectsOutput = task.result as? AWSS3ListObjectsOutput {
                 if let contents = listObjectsOutput.contents as? [AWSS3Object] {
                     for s3Object in contents {
-                        let downloadingFilePath = NSTemporaryDirectory().stringByAppendingPathComponent("download").stringByAppendingPathComponent(s3Object.key)
-                        let downloadingFileURL = NSURL(fileURLWithPath: downloadingFilePath)
+                        let downloadingFilePath = NSURL(fileURLWithPath: NSTemporaryDirectory()).URLByAppendingPathComponent("download").URLByAppendingPathComponent(s3Object.key)
+                        let downloadingFileURL = NSURL(fileURLWithPath: String(downloadingFilePath))
 
-                        if NSFileManager.defaultManager().fileExistsAtPath(downloadingFilePath) {
+                        if NSFileManager.defaultManager().fileExistsAtPath(String(downloadingFilePath)) {
                             self.downloadRequests.append(nil)
                             self.downloadFileURLs.append(downloadingFileURL)
                         } else {
@@ -126,12 +127,12 @@ class DownloadViewController: UIViewController, UICollectionViewDelegate, UIColl
                 if let error = task.error {
                     if error.domain == AWSS3TransferManagerErrorDomain as String
                         && AWSS3TransferManagerErrorType(rawValue: error.code) == AWSS3TransferManagerErrorType.Paused {
-                            println("Download paused.")
+                            print("Download paused.")
                     } else {
-                        println("download failed: [\(error)]")
+                        print("download failed: [\(error)]")
                     }
                 } else if let exception = task.exception {
-                    println("download failed: [\(exception)]")
+                    print("download failed: [\(exception)]")
                 } else {
                     dispatch_async(dispatch_get_main_queue(), { () -> Void in
                         if let index = self.indexOfDownloadRequest(self.downloadRequests, downloadRequest: downloadRequest) {
@@ -153,7 +154,7 @@ class DownloadViewController: UIViewController, UICollectionViewDelegate, UIColl
     }
 
     func downloadAll() {
-        for (index, value) in enumerate(self.downloadRequests) {
+        for (_, value) in self.downloadRequests.enumerate() {
             if let downloadRequest = value {
                 if downloadRequest.state == .NotStarted
                     || downloadRequest.state == .Paused {
@@ -166,15 +167,15 @@ class DownloadViewController: UIViewController, UICollectionViewDelegate, UIColl
     }
 
     func cancelAllDownloads() {
-        for (index, value) in enumerate(self.downloadRequests) {
+        for (_, value) in self.downloadRequests.enumerate() {
             if let downloadRequest = value {
                 if downloadRequest.state == .Running
                     || downloadRequest.state == .Paused {
                         downloadRequest.cancel().continueWithBlock({ (task) -> AnyObject! in
                             if let error = task.error {
-                                println("cancel() failed: [\(error)]")
+                                print("cancel() failed: [\(error)]")
                             } else if let exception = task.exception {
-                                println("cancel() failed: [\(exception)]")
+                                print("cancel() failed: [\(exception)]")
                             }
                             return nil
                         })
@@ -246,9 +247,9 @@ class DownloadViewController: UIViewController, UICollectionViewDelegate, UIColl
             case .Running:
                 downloadRequest.pause().continueWithBlock({ (task) -> AnyObject! in
                     if let error = task.error {
-                        println("pause() failed: [\(error)]")
+                        print("pause() failed: [\(error)]")
                     } else if let exception = task.exception {
-                        println("pause() failed: [\(exception)]")
+                        print("pause() failed: [\(exception)]")
                     } else {
                         dispatch_async(dispatch_get_main_queue(), { () -> Void in
                             collectionView.reloadItemsAtIndexPaths([indexPath])
@@ -274,13 +275,13 @@ class DownloadViewController: UIViewController, UICollectionViewDelegate, UIColl
                     imageInfo: imageInfo,
                     mode: .Image,
                     backgroundStyle: .Blurred)
-                imageViewer.showFromViewController(self, transition: ._FromOffscreen)
+                imageViewer.showFromViewController(self, transition: .FromOffscreen)
             }
         }
     }
 
     func indexOfDownloadRequest(array: Array<AWSS3TransferManagerDownloadRequest?>, downloadRequest: AWSS3TransferManagerDownloadRequest?) -> Int? {
-        for (index, object) in enumerate(array) {
+        for (index, object) in array.enumerate() {
             if object == downloadRequest {
                 return index
             }
